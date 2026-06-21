@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./public/logo.png" alt="LearnX logo" width="280" />
+  <img src="../learnx-app/public/logo.png" alt="LearnX logo" width="280" />
 
   <h3>Your local-first learning OS</h3>
   <p>Turn a folder of downloaded courses into a real learning experience — no backend, no uploads, no cloud.</p>
