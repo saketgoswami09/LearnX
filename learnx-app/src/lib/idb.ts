@@ -27,11 +27,13 @@ export const STORES = {
 // Open / init
 // ──────────────────────────────────────────────
 let _db: IDBDatabase | null = null;
+let _dbPromise: Promise<IDBDatabase> | null = null;
 
 export async function openDb(): Promise<IDBDatabase> {
   if (_db) return _db;
+  if (_dbPromise) return _dbPromise;
 
-  return new Promise((resolve, reject) => {
+  _dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
 
     req.onupgradeneeded = (e) => {
@@ -62,12 +64,26 @@ export async function openDb(): Promise<IDBDatabase> {
 
     req.onsuccess = async (e) => {
       _db = (e.target as IDBOpenDBRequest).result;
-      await seedDefaults(_db!);
-      resolve(_db!);
+      try {
+        await seedDefaults(_db!);
+        resolve(_db!);
+      } catch (error) {
+        _dbPromise = null;
+        reject(error);
+      }
     };
 
-    req.onerror = () => reject(req.error);
+    req.onerror = () => {
+      _dbPromise = null;
+      reject(req.error);
+    };
+    req.onblocked = () => {
+      _dbPromise = null;
+      reject(new Error('The LearnX local database is blocked by another open tab. Close other LearnX tabs and retry.'));
+    };
   });
+
+  return _dbPromise;
 }
 
 // ──────────────────────────────────────────────
@@ -157,12 +173,12 @@ async function seedDefaults(db: IDBDatabase) {
   if (count > 0) return;
 
   const categories = [
-    { id: 'cat-webdev', name: 'Web Development', icon: '🌐', color: '#7c6ef7' },
+    { id: 'cat-webdev', name: 'Web Development', icon: '🌐', color: '#2563a6' },
     { id: 'cat-dsa', name: 'Data Structures & Algorithms', icon: '🧮', color: '#f97316' },
-    { id: 'cat-design', name: 'UI/UX Design', icon: '🎨', color: '#ec4899' },
-    { id: 'cat-ml', name: 'Machine Learning', icon: '🤖', color: '#22c55e' },
-    { id: 'cat-devops', name: 'DevOps & Cloud', icon: '☁️', color: '#06b6d4' },
-    { id: 'cat-mobile', name: 'Mobile Development', icon: '📱', color: '#a855f7' },
+    { id: 'cat-design', name: 'UI/UX Design', icon: '🎨', color: '#0891b2' },
+    { id: 'cat-ml', name: 'Machine Learning', icon: '🤖', color: '#16a34a' },
+    { id: 'cat-devops', name: 'DevOps & Cloud', icon: '☁️', color: '#0284c7' },
+    { id: 'cat-mobile', name: 'Mobile Development', icon: '📱', color: '#ea580c' },
     { id: 'cat-other', name: 'Other', icon: '📖', color: '#6b7280' },
   ];
 

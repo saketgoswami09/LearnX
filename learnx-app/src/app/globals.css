@@ -1,36 +1,146 @@
 @import "tailwindcss";
 
-/* ── TAILWIND V4 FILE SCANNING FIX ── */
-/* Yeh lines Tailwind ko batayengi ki components folder ko bhi scan karna hai */
 @source "../components";
 @source "../app";
 
-/* ── LIGHT THEME VARIABLES (For Dashboard) ── */
 @theme {
-  --color-app-bg: #F8F9FC;
+  --color-app-bg: #f7f8fa;
+  --color-ink: #182230;
+  --color-muted: #667085;
+  --color-line: #e7e9ee;
+  --color-accent: #2563a6;
+  --color-accent-soft: #eaf2fb;
+  --color-success: #167a55;
+
+  --font-sans: var(--font-suisse), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-george), ui-sans-serif, system-ui, sans-serif;
 }
 
-@layer base {
-  body {
-    @apply bg-[#F8F9FC] text-gray-900 antialiased;
-  }
+:root {
+  --surface: #ffffff;
+  --surface-subtle: #f7f8fa;
+  --ink: #182230;
+  --muted: #667085;
+  --line: #e7e9ee;
+  --line-strong: #d9dee7;
+  --accent: #2563a6;
+  --accent-hover: #1d4f86;
+  --accent-soft: #eaf2fb;
+  --success: #167a55;
+  --danger: #b42318;
 }
 
-/* ── CUSTOM MINIMALIST SCROLLBAR ── */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+* { border-color: var(--line); }
+
+html { min-width: 320px; background: var(--surface-subtle); }
+
+body {
+  min-height: 100dvh;
+  margin: 0;
+  background: var(--surface-subtle);
+  color: var(--ink);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
+
+:focus-visible {
+  outline: 3px solid rgb(37 99 166 / 35%);
+  outline-offset: 2px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #E5E7EB;
-  border-radius: 10px;
+::selection { background: #dbeafe; color: #172554; }
+
+.app-shell { display: flex; min-height: 100dvh; width: 100%; }
+.app-main { min-width: 0; flex: 1; background: var(--surface-subtle); }
+.app-content { width: 100%; max-width: 1440px; margin: 0 auto; padding: 32px; }
+
+.ui-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgb(16 24 40 / 4%), 0 4px 12px rgb(16 24 40 / 4%);
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #D1D5DB;
+/* dashboard hero */
+.dash-hero {
+  box-shadow: 0 2px 8px rgb(16 24 40 / 5%), 0 12px 32px rgb(16 24 40 / 4%);
 }
+
+/* stat cards */
+.dash-stat {
+  box-shadow: 0 1px 4px rgb(16 24 40 / 4%), 0 8px 20px rgb(16 24 40 / 3%);
+  transition: box-shadow 180ms ease, transform 180ms ease;
+}
+.dash-stat:hover {
+  box-shadow: 0 4px 16px rgb(16 24 40 / 8%), 0 12px 28px rgb(16 24 40 / 5%);
+  transform: translateY(-2px);
+}
+
+.ui-card-interactive { transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+.ui-card-interactive:hover { border-color: #cfd7e3; box-shadow: 0 8px 24px rgb(16 24 40 / 8%), 0 16px 40px rgb(16 24 40 / 4%); transform: translateY(-2px); }
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 650;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+.ui-btn:active { transform: translateY(1px); }
+.ui-btn:disabled { cursor: not-allowed; opacity: .5; }
+.ui-btn-primary { background: var(--ink); color: white; border: 1px solid var(--ink); }
+.ui-btn-primary:hover { background: #293545; border-color: #293545; }
+.ui-btn-accent { background: var(--accent); color: white; border: 1px solid var(--accent); box-shadow: 0 1px 4px rgb(37 99 166 / 20%); }
+.ui-btn-accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); box-shadow: 0 4px 14px rgb(37 99 166 / 30%); }
+.ui-btn-secondary { background: var(--surface); color: #344054; border: 1px solid var(--line-strong); }
+.ui-btn-secondary:hover { background: #f9fafb; border-color: #cbd2dc; }
+.ui-btn-ghost { background: transparent; color: var(--muted); border: 1px solid transparent; }
+.ui-btn-ghost:hover { background: #eff2f6; color: var(--ink); }
+
+.ui-input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 20px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.ui-input::placeholder { color: #98a2b3; }
+.ui-input:hover { border-color: #bfc7d3; }
+.ui-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgb(37 99 166 / 12%); outline: none; }
+
+.ui-kicker { color: #667085; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.ui-page-title { color: var(--ink); font-family: var(--font-display); font-size: clamp(26px, 3vw, 34px); font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
+.ui-section-title { color: var(--ink); font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+.ui-progress { height: 6px; overflow: hidden; border-radius: 99px; background: #e9edf2; }
+.ui-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 450ms ease; }
+
+.skeleton { background: linear-gradient(90deg, #edf0f3 25%, #f7f8fa 38%, #edf0f3 63%); background-size: 400% 100%; animation: shimmer 1.35s ease infinite; }
+.fade-in-up { animation: fade-in-up 300ms ease both; }
+
+.custom-scrollbar { scrollbar-width: thin; scrollbar-color: #cbd2dc transparent; }
+.custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd2dc; border: 2px solid transparent; border-radius: 999px; background-clip: padding-box; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #98a2b3; }
+
+@keyframes shimmer { to { background-position: -400% 0; } }
+@keyframes fade-in-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Sidebar nav icon scale on hover */
+.sidebar-nav-item:hover .sidebar-nav-icon,
+.group\/tip:hover .sidebar-nav-icon { transform: scale(1.12); }
+.sidebar-nav-icon { display: inline-flex; transition: transform 160ms ease; }
+
+/* Ensure sidebar doesn't clip tooltips when collapsed */
+nav[aria-label="Primary"] { overflow: visible !important; }
+
+@media (max-width: 767px) { .app-content { padding: 20px 16px 28px; } }

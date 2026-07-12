@@ -1,237 +1,257 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { BookOpen, CheckCircle2, ChevronLeft, Clock3, FileText, Play, PlayCircle, Trash2 } from 'lucide-react';
 import type { Course, Module } from '@/types';
 import { formatDuration } from '@/lib/utils';
-import { ChevronLeft, Play, Settings, Plus, FileText, CheckCircle2, Circle, BookOpen } from 'lucide-react';
-import { getCourse } from '@/lib/service';
+import { deleteCourse, getCourse } from '@/lib/service';
 
 export default function CourseDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const [course, setCourse] = useState<Course & { modules: Module[] } | null>(null);
+  const [course, setCourse] = useState<(Course & { modules: Module[]; categoryName?: string }) | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!course) return;
+    if (!window.confirm(`Delete "${course.title}"?\n\nThis will permanently remove the course and all its lesson progress. This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await deleteCourse(course.id);
+      router.push('/library');
+    } catch {
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
-    getCourse(params.courseId as string).then(data => {
-      if (!data) router.push('/library');
-      else setCourse(data as any);
-      setLoading(false);
-    });
+    let active = true;
+    getCourse(params.courseId as string)
+      .then(data => {
+        if (!active) return;
+        if (!data) router.push('/library');
+        else setCourse(data as any);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
   }, [params.courseId, router]);
 
-  if (loading || !course) return (
-    <div className="max-w-[1000px] mx-auto w-full p-6 space-y-6 animate-pulse">
-      <div className="h-[260px] bg-gray-100 rounded-[2rem] w-full" />
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
-        <div className="space-y-4">
-          <div className="h-10 bg-gray-100 rounded-xl w-1/3" />
-          <div className="h-24 bg-gray-100 rounded-2xl w-full" />
-          <div className="h-24 bg-gray-100 rounded-2xl w-full" />
-        </div>
-        <div className="space-y-4">
-          <div className="h-48 bg-gray-100 rounded-2xl w-full" />
+  if (loading || !course) {
+    return (
+      <div className="space-y-6">
+        <div className="skeleton h-[236px] rounded-xl" />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_290px]">
+          <div className="skeleton h-[420px] rounded-xl" />
+          <div className="skeleton h-[240px] rounded-xl" />
         </div>
       </div>
-    </div>
+    );
+  }
+
+  const modules = course.modules as any[];
+  const totalLessons = modules.reduce((total, module) => total + (module.lessons?.length || 0), 0);
+  const completedLessons = modules.reduce(
+    (total, module) => total + (module.lessons?.filter((lesson: any) => lesson.completed).length || 0),
+    0,
   );
-
-  const totalLessons = (course as any).modules.reduce((acc: number, m: any) => acc + (m.lessons?.length || 0), 0);
-  const completedLessons = (course as any).modules.reduce((acc: number, m: any) => acc + (m.lessons?.filter((l: any) => l.completed)?.length || 0), 0);
   const progress = totalLessons ? Math.round((completedLessons / totalLessons) * 100) : 0;
-
-  const firstLesson = (course as any).modules.flatMap((m: any) => m.lessons || [])[0];
-
-  // Derive color for UI elements based on course.color or default to indigo
-  const themeColor = (course as any).color || '#4f46e5';
+  const firstLesson = modules.flatMap(module => module.lessons || [])[0];
+  const themeColor = course.color || '#2563a6';
 
   return (
-    <div className="max-w-[1000px] mx-auto w-full p-6 md:p-8 font-sans animate-in fade-in duration-500">
-
-      <Link
-        href="/library"
-        className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-gray-500 hover:text-gray-900 transition-colors mb-6 group focus:outline-none"
-      >
-        <ChevronLeft size={16} className="transition-transform group-hover:-translate-x-0.5" />
-        Back to Library
+    <div className="space-y-6">
+      <Link href="/library" className="ui-btn ui-btn-ghost -ml-2 min-h-8 px-2 text-[12px]">
+        <ChevronLeft size={16} /> Back to library
       </Link>
 
-      {/* ── HEADER SECTION ── */}
-      <div className="bg-white border border-gray-100 rounded-[2rem] overflow-hidden mb-10 shadow-sm">
-        {/* Cover Banner */}
-        <div
-          className="h-40 w-full opacity-20"
-          style={{ backgroundColor: themeColor }}
-        />
-
-        {/* Header Content */}
-        <div className="px-6 pb-8 md:px-10 flex flex-col sm:flex-row gap-6 items-start sm:items-end -mt-12">
-
-          {/* Icon Box */}
-          <div
-            className="w-24 h-24 rounded-2xl flex items-center justify-center border-4 border-white shadow-lg shrink-0"
-            style={{ backgroundColor: themeColor }}
-          >
-            <BookOpen size={36} className="text-white" />
-          </div>
-
-          <div className="flex-1 pb-1 w-full">
-            <div className="flex flex-wrap gap-2 mb-3">
-              {(course as any).categoryName && (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700">
-                  {(course as any).categoryName}
-                </span>
-              )}
-              {progress === 100 && (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700">
-                  Completed
-                </span>
-              )}
-            </div>
-
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight leading-tight mb-2">
-              {course.title}
-            </h1>
-            <p className="text-[14px] text-gray-500 font-medium max-w-2xl leading-relaxed">
-              {course.description || 'No description provided for this course.'}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0 pb-1 w-full sm:w-auto">
-            <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[13px] font-semibold rounded-xl transition-all shadow-sm">
-              <Settings size={15} /> Edit
-            </button>
-            {firstLesson && (
-              <button
-                onClick={() => router.push(`/course/${course.id}/lesson/${firstLesson.id}`)}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-white text-[13px] font-semibold rounded-xl transition-all shadow-md active:scale-95"
-                style={{ backgroundColor: themeColor }}
-              >
-                <Play size={15} fill="currentColor" /> Resume
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
-
-        {/* ── LEFT COLUMN: MODULES ── */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Course Content</h2>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-100">
-              <Plus size={14} /> Add Module
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {(course as any).modules.length === 0 ? (
-              <div className="py-16 text-center border border-gray-200 border-dashed rounded-2xl bg-gray-50/50">
-                <p className="text-[14px] font-medium text-gray-500">No modules yet. Import a folder to get started.</p>
+      {/* Hero card */}
+      <section className="ui-card overflow-hidden">
+        <div className="h-2" style={{ backgroundColor: themeColor }} />
+        <div className="flex flex-col gap-6 p-6 sm:p-7 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex min-w-0 gap-4">
+            <span
+              className="flex size-12 shrink-0 items-center justify-center rounded-xl text-white"
+              style={{ backgroundColor: themeColor }}
+            >
+              <BookOpen size={23} />
+            </span>
+            <div className="min-w-0">
+              <div className="mb-2 flex flex-wrap gap-2">
+                {course.categoryName && (
+                  <span className="rounded-full bg-[#f1f3f6] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[.06em] text-[#667085]">
+                    {course.categoryName}
+                  </span>
+                )}
+                {progress === 100 && (
+                  <span className="rounded-full bg-[#edf7f1] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[.06em] text-[#167a55]">
+                    Completed
+                  </span>
+                )}
               </div>
-            ) : (
-              (course as any).modules.map((mod: any) => (
-                <div key={mod.id} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+              <h1 className="ui-page-title break-words">{course.title}</h1>
+              <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[#667085]">
+                {course.description || 'No description provided for this course.'}
+              </p>
+            </div>
+          </div>
+          {firstLesson && (
+            <button
+              type="button"
+              onClick={() => router.push(`/course/${course.id}/lesson/${firstLesson.id}`)}
+              className="ui-btn ui-btn-primary shrink-0"
+            >
+              <Play size={16} fill="currentColor" />
+              {progress > 0 ? 'Resume course' : 'Start course'}
+            </button>
+          )}
+        </div>
+      </section>
 
-                  {/* Module Header */}
-                  <div className="px-5 py-4 bg-gray-50/80 border-b border-gray-100 flex items-center justify-between">
-                    <h3 className="text-[15px] font-bold text-gray-900 tracking-tight">{mod.title}</h3>
-                    <span className="text-[12px] font-semibold text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-100">
-                      {mod.lessons?.length || 0} lessons
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_290px]">
+        {/* Lessons list */}
+        <section className="ui-card overflow-hidden">
+          <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4 sm:px-6">
+            <div>
+              <p className="ui-kicker">Course content</p>
+              <h2 className="mt-1 ui-section-title">
+                {totalLessons} lesson{totalLessons === 1 ? '' : 's'} across {modules.length} module{modules.length === 1 ? '' : 's'}
+              </h2>
+            </div>
+          </div>
+
+          {modules.length === 0 ? (
+            <div className="px-6 py-16 text-center">
+              <BookOpen size={24} className="mx-auto mb-3 text-[#98a2b3]" />
+              <p className="text-[13px] text-[#667085]">This course does not have any lessons yet.</p>
+              <Link href="/import" className="ui-btn ui-btn-secondary mt-5">Import content</Link>
+            </div>
+          ) : (
+            <div className="divide-y divide-[#e7e9ee]">
+              {modules.map(module => (
+                <div key={module.id}>
+                  <div className="flex items-center justify-between bg-[#fafbfc] px-5 py-3 sm:px-6">
+                    <h3 className="text-[13px] font-bold text-[#344054]">{module.title}</h3>
+                    <span className="text-[11px] font-medium text-[#98a2b3]">
+                      {module.lessons?.length || 0} lessons
                     </span>
                   </div>
-
-                  {/* Lessons List */}
-                  <div className="divide-y divide-gray-50">
-                    {(!mod.lessons || mod.lessons.length === 0) ? (
-                      <div className="p-6 text-center text-[13px] font-medium text-gray-400">Empty module</div>
-                    ) : (
-                      mod.lessons.map((lesson: any) => (
+                  {module.lessons?.length ? (
+                    <div className="divide-y divide-[#edf0f3]">
+                      {module.lessons.map((lesson: any) => (
                         <Link
                           key={lesson.id}
                           href={`/course/${course.id}/lesson/${lesson.id}`}
-                          className="flex items-start sm:items-center gap-4 px-5 py-3.5 hover:bg-gray-50/80 transition-colors group focus:outline-none focus:bg-gray-50"
+                          className="group flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[#fafbfc] sm:px-6"
                         >
-                          <div className="mt-0.5 sm:mt-0 shrink-0">
+                          <span
+                            className={`flex size-8 shrink-0 items-center justify-center rounded-full ${
+                              lesson.completed
+                                ? 'bg-[#edf7f1] text-[#167a55]'
+                                : 'bg-[#f1f3f6] text-[#667085]'
+                            }`}
+                          >
                             {lesson.completed ? (
-                              <CheckCircle2 size={18} className="text-emerald-500 fill-emerald-50" />
+                              <CheckCircle2 size={16} />
+                            ) : lesson.type === 'video' ? (
+                              <Play size={14} fill="currentColor" />
                             ) : (
-                              <Circle size={18} className="text-gray-300 group-hover:text-indigo-400 transition-colors" />
+                              <FileText size={14} />
                             )}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[14px] font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[13px] font-semibold text-[#344054] group-hover:text-[#1d4f86]">
                               {lesson.title}
-                            </div>
-
-                            <div className="flex items-center gap-2 mt-1 text-[11px] font-medium text-gray-500">
-                              <span className="flex items-center gap-1 uppercase tracking-wider">
-                                {lesson.type === 'video' ? <Play size={10} className="fill-current" /> : <FileText size={10} />}
-                                {lesson.type}
-                              </span>
+                            </span>
+                            <span className="mt-0.5 flex items-center gap-2 text-[11px] text-[#98a2b3]">
+                              <span className="capitalize">{lesson.type}</span>
                               {lesson.duration > 0 && (
                                 <>
-                                  <span className="w-1 h-1 rounded-full bg-gray-300" />
+                                  <span>•</span>
                                   <span>{formatDuration(lesson.duration)}</span>
                                 </>
                               )}
-                            </div>
-                          </div>
+                            </span>
+                          </span>
+                          <PlayCircle size={16} className="shrink-0 text-[#c5ccd6] group-hover:text-[#2563a6]" />
                         </Link>
-                      ))
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="px-5 py-4 text-[12px] text-[#98a2b3] sm:px-6">No lessons in this module.</p>
+                  )}
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* ── RIGHT COLUMN: SIDEBAR ── */}
-        <div className="space-y-6">
-
-          {/* Progress Card */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-            <h3 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-4">Course Progress</h3>
-
-            <div className="text-4xl font-extrabold text-gray-900 tracking-tight leading-none mb-3">
-              {progress}%
+              ))}
             </div>
+          )}
+        </section>
 
-            <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden mb-3">
-              <div
-                className="h-full rounded-full transition-all duration-700 ease-out"
-                style={{ width: `${progress}%`, backgroundColor: themeColor }}
-              />
+        {/* Sidebar */}
+        <aside className="space-y-4">
+          <section className="ui-card p-5">
+            <p className="ui-kicker">Progress</p>
+            <div className="mt-4 flex items-end justify-between">
+              <p className="text-[36px] font-bold tracking-[-.045em] text-[#182230]">{progress}%</p>
+              <span className="text-[12px] text-[#667085]">{completedLessons} of {totalLessons}</span>
             </div>
-
-            <div className="text-[13px] font-semibold text-gray-500">
-              {completedLessons} of {totalLessons} lessons completed
+            <div className="mt-3 ui-progress">
+              <span style={{ width: `${progress}%`, backgroundColor: themeColor }} />
             </div>
-          </div>
+            <p className="mt-3 text-[12px] leading-5 text-[#667085]">
+              Complete lessons at your own pace; LearnX will keep your place.
+            </p>
+          </section>
 
-          {/* Tags Card */}
-          {course.tags && course.tags.length > 0 && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-              <h3 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-4">Tags</h3>
-              <div className="flex flex-wrap gap-2">
-                {course.tags.map((t: string) => (
+          {course.tags?.length > 0 && (
+            <section className="ui-card p-5">
+              <p className="ui-kicker">Tags</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {course.tags.map(tag => (
                   <span
-                    key={t}
-                    className="inline-flex items-center px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-lg text-[11px] font-semibold text-gray-600 uppercase tracking-wide"
+                    key={tag}
+                    className="rounded-full border border-[#e1e6ed] bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[.05em] text-[#667085]"
                   >
-                    {t}
+                    {tag}
                   </span>
                 ))}
               </div>
-            </div>
+            </section>
           )}
 
-        </div>
+          <section className="ui-card p-5">
+            <div className="flex gap-3">
+              <Clock3 size={17} className="mt-0.5 shrink-0 text-[#667085]" />
+              <p className="text-[12px] leading-5 text-[#667085]">
+                Lesson duration is detected while watching supported media. Imported PDFs can be read from the same course flow.
+              </p>
+            </div>
+          </section>
+
+          {/* Delete course */}
+          <section className="ui-card overflow-hidden">
+            <div className="px-5 py-4">
+              <p className="text-[12px] leading-5 text-[#667085]">
+                Permanently remove this course and all its lesson progress from your device.
+              </p>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-[9px] border border-[#fecdca] bg-[#fff1f2] px-3 py-2.5 text-[13px] font-semibold text-[#b42318] transition-colors hover:bg-[#ffe4e6] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleting
+                  ? <span className="size-4 animate-spin rounded-full border-2 border-[#b42318] border-t-transparent" />
+                  : <Trash2 size={15} />
+                }
+                {deleting ? 'Deleting…' : 'Delete course'}
+              </button>
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   );

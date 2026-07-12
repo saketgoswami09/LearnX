@@ -3,188 +3,284 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, BookOpen, Search, Settings,
-  Zap, FolderOpen, Plus, Copy, Check, ChevronLeft, ChevronRight
+  BookOpen, Check, ChevronLeft, ChevronRight, Copy,
+  FolderInput, GraduationCap, HelpCircle, LayoutDashboard,
+  Plus, Search, Settings,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CreateCourseModal } from '@/components/course/CreateCourseModal';
-import logo from "@/../public/logo.png";
-import Image from "next/image";
 import { useSidebarStore } from '@/store/useSidebarStore';
 
 const NAV = [
-  { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/library', icon: BookOpen, label: 'Library' },
-  { href: '/search', icon: Search, label: 'Search' },
-  { href: '/import', icon: FolderOpen, label: 'Import' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
+  { href: '/',         icon: LayoutDashboard, label: 'Overview'  },
+  { href: '/library',  icon: BookOpen,        label: 'Library'   },
+  { href: '/search',   icon: Search,          label: 'Search'    },
+  { href: '/import',   icon: FolderInput,     label: 'Import'    },
+  { href: '/settings', icon: Settings,        label: 'Settings'  },
 ];
+
+/* Reusable tooltip wrapper — shows label on the right when collapsed */
+function Tip({ label, children, side = 'right' }: { label: string; children: React.ReactNode; side?: string }) {
+  return (
+    <div className="relative group/tip">
+      {children}
+      <span
+        className={`
+          pointer-events-none absolute top-1/2 -translate-y-1/2 z-[100]
+          ${side === 'right' ? 'left-[calc(100%+10px)]' : 'right-[calc(100%+10px)]'}
+          whitespace-nowrap rounded-[7px] bg-[#182230] px-2.5 py-1.5
+          text-[11px] font-semibold text-white shadow-lg
+          opacity-0 scale-95 transition-all duration-150
+          group-hover/tip:opacity-100 group-hover/tip:scale-100
+        `}
+      >
+        {label}
+        {/* arrow */}
+        <span
+          className={`absolute top-1/2 -translate-y-1/2 border-4 border-transparent ${
+            side === 'right'
+              ? '-left-1.5 border-r-[#182230]'
+              : '-right-1.5 border-l-[#182230]'
+          }`}
+        />
+      </span>
+    </div>
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
   const [showCreate, setShowCreate] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const { isCollapsed, isMobileOpen, toggleCollapse, setMobileOpen } = useSidebarStore();
+  const [copied,     setCopied]     = useState(false);
+  const { isCollapsed, isMobileOpen, toggleCollapse, setMobileOpen, setCollapsed } = useSidebarStore();
+  const email = 'saketgirigoswami4141@gmail.com';
 
-  const email = "saketgirigoswami4141@gmail.com";
+  /* ── Close mobile on route change ── */
+  useEffect(() => { setMobileOpen(false); }, [pathname, setMobileOpen]);
 
-  const handleCopyEmail = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigator.clipboard.writeText(email);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  // Close mobile sidebar on navigation
+  /* ── Adaptive collapse: lesson player → collapsed, others → expanded ── */
+  const prevPathRef = useRef(pathname);
   useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname, setMobileOpen]);
+    if (prevPathRef.current === pathname) return;
+    prevPathRef.current = pathname;
+    const isLesson = /\/course\/.+\/lesson\/.+/.test(pathname);
+    setCollapsed(isLesson);
+  }, [pathname, setCollapsed]);
+
+  const handleCopyEmail = async (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(email);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch { /* optional */ }
+  };
 
   return (
     <>
-      {/* ── MOBILE OVERLAY ── */}
       {isMobileOpen && (
-        <div 
-          className="fixed inset-0 bg-gray-900/20 backdrop-blur-sm z-40 md:hidden transition-opacity"
+        <button
+          type="button"
+          aria-label="Close navigation"
+          className="fixed inset-0 z-40 bg-slate-950/25 md:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
-      {/* ── SIDEBAR ── */}
-      <aside className={`
-        fixed md:relative top-0 left-0 h-screen bg-white border-r border-gray-100 flex flex-col shrink-0 z-50 font-sans transition-all duration-300 ease-in-out
-        ${isCollapsed ? 'md:w-[80px]' : 'md:w-[260px]'}
-        w-[260px]
-        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50 flex shrink-0 flex-col
+          border-r border-[var(--line)] bg-white
+          transition-[transform,width] duration-200 ease-out
+          md:sticky md:top-0 md:translate-x-0
+          ${isCollapsed ? 'w-[272px] md:w-[62px]' : 'w-[272px]'}
+          ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        {/* ── Logo row ───────────────────────────────── */}
+        <div className={`flex h-[68px] items-center border-b border-[var(--line)] ${isCollapsed ? 'justify-center px-3' : 'justify-between px-5'}`}>
+          {isCollapsed ? (
+            /* collapsed: logo icon is the tooltip trigger */
+            <Tip label="LearnX — Learning workspace">
+              <Link href="/" aria-label="LearnX overview" className="flex size-9 items-center justify-center rounded-[10px] bg-[#182230] text-white shadow-sm hover:bg-[#293545] transition-colors">
+                <GraduationCap size={18} strokeWidth={2.15} />
+              </Link>
+            </Tip>
+          ) : (
+            <>
+              <Link href="/" className="flex min-w-0 items-center gap-3" aria-label="LearnX overview">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-[#182230] text-white shadow-sm">
+                  <GraduationCap size={18} strokeWidth={2.15} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[15px] font-bold tracking-[-.02em] text-[#182230]">LearnX</span>
+                  <span className="block text-[10px] font-semibold uppercase tracking-[.12em] text-[#98a2b3]">Learning workspace</span>
+                </span>
+              </Link>
+              <button
+                type="button"
+                onClick={toggleCollapse}
+                aria-label="Collapse navigation"
+                className="hidden rounded-md p-1.5 text-[#98a2b3] transition-colors hover:bg-[#f1f3f6] hover:text-[#344054] md:inline-flex"
+              >
+                <ChevronLeft size={17} />
+              </button>
+            </>
+          )}
 
-        {/* ── LOGO & HEADER ── */}
-        <div className={`p-5 pb-2 shrink-0 flex items-center ${isCollapsed ? 'justify-center px-0' : 'justify-between'}`}>
-          <div className={`flex items-center gap-3 ${isCollapsed ? 'mb-4' : 'mb-6'}`}>
-            <div className="w-[34px] h-[34px] shrink-0">
-              <Image src={logo} alt="LearnX Logo" className="w-full h-full object-contain" />
-            </div>
-            {!isCollapsed && (
-              <div className="flex flex-col">
-                <span className="font-bold text-[15px] text-gray-900 leading-tight">LearnX</span>
-                <span className="text-[10px] font-semibold text-gray-400 tracking-widest">LEARNING OS</span>
-              </div>
-            )}
-          </div>
-          
-          {/* Collapse Toggle (Desktop only) */}
-          <button 
-            onClick={toggleCollapse}
-            className={`hidden md:flex p-1.5 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors ${isCollapsed ? 'absolute -right-3 top-6 bg-white border border-gray-200 shadow-sm rounded-full p-1' : 'mb-6'}`}
-          >
-            {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={18} />}
-          </button>
+          {/* Expand chevron when collapsed */}
+          {isCollapsed && (
+            <button
+              type="button"
+              onClick={toggleCollapse}
+              aria-label="Expand navigation"
+              className="hidden md:inline-flex absolute left-[62px] top-[22px] -translate-x-1/2 size-5 items-center justify-center rounded-full border border-[var(--line)] bg-white text-[#98a2b3] shadow-sm transition-colors hover:border-[#2563a6] hover:text-[#2563a6]"
+            >
+              <ChevronRight size={12} />
+            </button>
+          )}
         </div>
 
-        <div className={`px-4 pb-4 ${isCollapsed ? 'px-3' : ''}`}>
-          <button
-            onClick={() => setShowCreate(true)}
-            title={isCollapsed ? "New Course" : undefined}
-            className={`w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-xl transition-all shadow-sm active:scale-[0.98]
-              ${isCollapsed ? 'p-2.5 aspect-square' : 'px-4 py-2.5'}
-            `}
-          >
-            <Plus size={16} />
-            {!isCollapsed && "New Course"}
-          </button>
+        {/* ── New course button ───────────────────────── */}
+        <div className={`pt-4 ${isCollapsed ? 'px-[11px]' : 'px-4'}`}>
+          {isCollapsed ? (
+            <Tip label="New course">
+              <button
+                type="button"
+                onClick={() => setShowCreate(true)}
+                className="flex size-10 items-center justify-center rounded-[10px] bg-[#182230] text-white shadow-sm transition-colors hover:bg-[#293545] active:translate-y-px"
+              >
+                <Plus size={17} strokeWidth={2.2} />
+              </button>
+            </Tip>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="ui-btn ui-btn-primary w-full"
+            >
+              <Plus size={17} strokeWidth={2.2} /> New course
+            </button>
+          )}
         </div>
 
-        {/* ── NAVIGATION ── */}
-        <nav className="flex-1 px-3 space-y-1 overflow-y-auto custom-scrollbar">
+        {/* ── Nav links ──────────────────────────────── */}
+        <nav
+          aria-label="Primary"
+          className={`flex-1 overflow-y-auto py-5 custom-scrollbar ${isCollapsed ? 'space-y-1 px-[11px]' : 'space-y-0.5 px-3'}`}
+        >
           {!isCollapsed && (
-            <div className="px-3 py-2 mt-2">
-              <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">
-                Navigate
-              </span>
-            </div>
+            <p className="px-3 pb-3 text-[10px] font-semibold uppercase tracking-[.1em] text-[#c5ccd6]">
+              Workspace
+            </p>
           )}
 
           {NAV.map(({ href, icon: Icon, label }) => {
-            const isActive = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                title={isCollapsed ? label : undefined}
-                className={`flex items-center gap-3 rounded-xl transition-all font-medium ${
-                  isCollapsed ? 'justify-center p-3 mb-1' : 'px-3 py-2.5 text-[13.5px]'
-                } ${isActive
-                  ? 'bg-indigo-50 text-indigo-600 shadow-sm'
-                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-              >
-                <Icon size={18} className={isActive ? 'text-indigo-600' : 'text-gray-400'} />
-                {!isCollapsed && label}
+            const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+
+            const linkClass = `
+              relative flex items-center gap-3 rounded-[9px] text-[13px] font-semibold
+              transition-all duration-150
+              ${isCollapsed
+                ? 'h-10 w-10 justify-center p-0'
+                : 'h-10 px-3'
+              }
+              ${active
+                ? 'bg-[#eef4fc] text-[#1d4f86]'
+                : 'text-[#667085] hover:bg-[#f4f6f8] hover:text-[#344054]'
+              }
+            `;
+
+            const iconEl = (
+              <>
+                {/* Left accent bar for active */}
+                {active && (
+                  <span
+                    className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-[#2563a6]"
+                    aria-hidden="true"
+                  />
+                )}
+                <span className="sidebar-nav-icon">
+                  <Icon size={17} strokeWidth={active ? 2.2 : 1.8} />
+                </span>
+                {!isCollapsed && <span>{label}</span>}
+              </>
+            );
+
+            return isCollapsed ? (
+              <Tip key={href} label={label}>
+                <Link href={href} className={linkClass} aria-label={label}>
+                  {iconEl}
+                </Link>
+              </Tip>
+            ) : (
+              <Link key={href} href={href} className={linkClass}>
+                {iconEl}
               </Link>
             );
           })}
         </nav>
 
-        {/* ── USER PROFILE & SPONSOR FOOTER ── */}
-        <div className={`p-4 border-t border-gray-100 shrink-0 flex flex-col gap-3 ${isCollapsed ? 'items-center px-2' : ''}`}>
+        {/* ── Footer ─────────────────────────────────── */}
+        <div className={`space-y-1 border-t border-[var(--line)] py-3 ${isCollapsed ? 'px-[11px]' : 'px-3'}`}>
 
-          {/* Digital Heroes Required Button */}
-          {!isCollapsed ? (
-            <a
-              href="https://digitalheroesco.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center py-2.5 px-4 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100/80 text-indigo-600 text-[12.5px] font-bold rounded-xl transition-colors shadow-sm"
-            >
-              Built for Digital Heroes
-            </a>
+          {/* Help & Support */}
+          {isCollapsed ? (
+            <Tip label="Help &amp; Support">
+              <button
+                type="button"
+                className="flex size-10 items-center justify-center rounded-[9px] text-[#98a2b3] transition-colors hover:bg-[#f4f6f8] hover:text-[#344054]"
+                aria-label="Help and support"
+              >
+                <HelpCircle size={17} strokeWidth={1.8} />
+              </button>
+            </Tip>
           ) : (
-            <a
-              href="https://digitalheroesco.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Built for Digital Heroes"
-              className="w-full flex items-center justify-center p-2.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100/80 text-indigo-600 rounded-xl transition-colors shadow-sm aspect-square"
+            <button
+              type="button"
+              className="flex h-9 w-full items-center gap-3 rounded-[9px] px-3 text-[13px] font-semibold text-[#98a2b3] transition-colors hover:bg-[#f4f6f8] hover:text-[#344054]"
+              aria-label="Help and support"
             >
-              <Zap size={16} />
-            </a>
+              <HelpCircle size={16} strokeWidth={1.8} />
+              <span>Help &amp; Support</span>
+            </button>
           )}
 
-          {/* User Profile Block */}
-          <div className={`flex items-center rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group relative ${isCollapsed ? 'p-1 justify-center' : 'gap-3 px-2 py-1.5'}`}>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-orange-400 flex items-center justify-center text-xs font-bold text-white shadow-sm shrink-0">
-              SG
-            </div>
-
-            {!isCollapsed && (
-              <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-[13px] font-bold text-gray-900 truncate">Saket giri goswami</span>
-
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-medium text-gray-500 truncate group-hover:text-indigo-600 transition-colors">
-                    {email}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Hover Copy Button */}
-            {!isCollapsed && (
+          {/* User avatar */}
+          {isCollapsed ? (
+            <Tip label={`${email} — click to copy`}>
               <button
+                type="button"
                 onClick={handleCopyEmail}
-                className="absolute right-2 p-1.5 rounded-md bg-white border border-gray-200 text-gray-500 opacity-0 group-hover:opacity-100 transition-all shadow-sm hover:text-indigo-600 hover:border-indigo-200 focus:outline-none"
-                title="Copy Email"
+                className="flex size-10 items-center justify-center rounded-[9px] transition-colors hover:bg-[#f4f6f8]"
+                aria-label="Copy email"
               >
-                {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                <span className="flex size-8 items-center justify-center rounded-full bg-[#dbeafe] text-[11px] font-bold text-[#1d4f86]">
+                  SG
+                </span>
               </button>
-            )}
-          </div>
-
+            </Tip>
+          ) : (
+            <button
+              type="button"
+              onClick={handleCopyEmail}
+              className="flex w-full items-center gap-3 rounded-[10px] p-2 text-left transition-colors hover:bg-[#f4f6f8]"
+            >
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#dbeafe] text-[11px] font-bold text-[#1d4f86]">
+                SG
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[12px] font-semibold text-[#344054]">Saket giri goswami</span>
+                <span className="block truncate text-[10px] text-[#98a2b3]">{email}</span>
+              </span>
+              <span className="text-[#98a2b3]">
+                {copied ? <Check size={14} className="text-[#167a55]" /> : <Copy size={14} />}
+              </span>
+            </button>
+          )}
         </div>
       </aside>
 
-      {/* Course Modal Injection */}
       {showCreate && <CreateCourseModal onClose={() => setShowCreate(false)} />}
     </>
   );

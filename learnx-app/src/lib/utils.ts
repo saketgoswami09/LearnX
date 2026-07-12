@@ -61,6 +61,6 @@ export function getVideoType(filePath: string): string {
 export const courseColorMap: Record<string, string> = {};
 
 export const ACCENT_COLORS = [
-  '#7c6ef7', '#f97316', '#ec4899', '#22c55e',
-  '#06b6d4', '#a855f7', '#eab308', '#14b8a6',
+  '#2563a6', '#f97316', '#d97706', '#16a34a',
+  '#06b6d4', '#0284c7', '#eab308', '#14b8a6',
 ];

@@ -1,219 +1,353 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import type { DashboardStats } from '@/types';
-import { formatDuration, formatHours, timeAgo } from '@/lib/utils';
+import { useEffect, useState } from 'react';
 import {
-  Flame, Clock, BookOpen, TrendingUp,
-  Play, ChevronRight, Zap, Target, BarChart3, Loader2
+  ArrowRight, BookOpen, CheckCircle2, Clock3,
+  Flame, Play, Sparkles, Target, TrendingUp,
 } from 'lucide-react';
-import { getStats } from '@/lib/service';
+import type { Course, DashboardStats } from '@/types';
+import { formatDuration, timeAgo } from '@/lib/utils';
+import { getCourses, getStats } from '@/lib/service';
 
-export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getStats().then(data => {
-      setStats(data);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
-
-  if (loading) return (
-    <div className="max-w-6xl mx-auto w-full space-y-6 p-6 animate-pulse">
-      <div className="h-32 bg-gray-100 rounded-3xl w-full" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-28 bg-gray-100 rounded-2xl w-full" />
-        ))}
+/* ─── Skeleton ────────────────────────────────────────────── */
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="skeleton h-[200px] rounded-2xl" />
+      <div className="skeleton h-[160px] rounded-xl" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }, (_, i) => <div key={i} className="ui-card skeleton h-[120px]" />)}
       </div>
     </div>
   );
+}
+
+/* ─── SVG Progress Ring ───────────────────────────────────── */
+function ProgressRing({ pct, size = 72, stroke = 6, color = '#2563a6' }: { pct: number; size?: number; stroke?: number; color?: string }) {
+  const r    = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = (pct / 100) * circ;
+  return (
+    <svg width={size} height={size} className="shrink-0 -rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e9edf2" strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+        strokeLinecap="round" strokeDasharray={`${dash} ${circ}`}
+        style={{ transition: 'stroke-dasharray 600ms ease' }} />
+    </svg>
+  );
+}
+
+/* ─── Course progress card ────────────────────────────────── */
+function CourseProgressCard({ course, continueItem }: {
+  course: Course & { totalLessons: number; completedLessons: number; progress: number };
+  continueItem?: { lesson_id: string } | null;
+}) {
+  const pct       = course.progress ?? 0;
+  const color     = course.color || '#2563a6';
+  const started   = course.completedLessons > 0;
+  const done      = pct === 100;
+  const btnLabel  = done ? 'Review' : started ? 'Resume' : 'Start';
+  const lessonHref = continueItem
+    ? `/course/${course.id}/lesson/${continueItem.lesson_id}`
+    : `/course/${course.id}`;
+
+  return (
+    <div className="ui-card flex flex-col gap-3 overflow-hidden p-4 transition-shadow hover:shadow-[0_4px_16px_rgb(16_24_40/8%)]">
+      {/* thin colour accent top */}
+      <div className="absolute top-0 inset-x-0 h-[3px] rounded-t-[14px]" style={{ backgroundColor: color }} />
+
+      <div className="flex items-start justify-between gap-3 pt-1">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[14px] font-bold tracking-[-.02em] text-[#182230]">{course.title}</p>
+          <p className="mt-0.5 text-[11px] text-[#98a2b3]">
+            {course.completedLessons} / {course.totalLessons} lessons
+            {done && <span className="ml-2 font-semibold text-[#167a55]">✓ Complete</span>}
+          </p>
+        </div>
+        <span className="text-[20px] font-bold tabular-nums tracking-tight text-[#344054]">{pct}%</span>
+      </div>
+
+      {/* progress bar */}
+      <div className="ui-progress">
+        <span style={{ width: `${pct}%`, backgroundColor: color }} />
+      </div>
+
+      {/* footer */}
+      <div className="flex items-center justify-between">
+        <Link
+          href={`/course/${course.id}`}
+          className="text-[11px] font-semibold text-[#98a2b3] hover:text-[#344054] transition-colors"
+        >
+          View course
+        </Link>
+        <Link
+          href={lessonHref}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-bold text-white transition-colors hover:opacity-90 active:scale-[.98]"
+          style={{ backgroundColor: color }}
+        >
+          {done ? <CheckCircle2 size={13} /> : <Play size={12} fill="currentColor" />}
+          {btnLabel}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main page ───────────────────────────────────────────── */
+export default function DashboardPage() {
+  const [stats,   setStats]   = useState<DashboardStats | null>(null);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([getStats(), getCourses()])
+      .then(([s, c]) => { if (active) { setStats(s); setCourses(c); } })
+      .catch(() => { if (active) setStats(null); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
 
   const greeting = () => {
     const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
+    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
   };
 
+  if (loading) return <DashboardSkeleton />;
+
+  const hasCourses    = (stats?.totalCourses ?? 0) > 0;
+  const totalLessons  = stats?.totalLessons ?? 0;
+  const completed     = stats?.completedLessons ?? 0;
+  const overallPct    = totalLessons ? Math.round((completed / totalLessons) * 100) : 0;
+  const topCourse     = stats?.continueWatching?.[0] ?? null;
+
+  // Map continueWatching by course_id for quick lookup
+  const cwMap = Object.fromEntries(
+    (stats?.continueWatching ?? []).map(cw => [cw.course_id, cw])
+  );
+
+  // Estimate remaining time (avg ~8 min per lesson)
+  const remainingLessons = totalLessons - completed;
+  const estRemainSec     = remainingLessons * 8 * 60;
+
+  const statCards = [
+    { label: 'Active Courses',  value: stats?.totalCourses ?? 0,          sub: `${totalLessons} lessons`,   icon: BookOpen, tone: 'bg-[#eaf2fb] text-[#2563a6]' },
+    { label: 'Learning Time',   value: `${stats?.totalHoursLearned ?? 0}h`, sub: 'Total focused time',       icon: Clock3,   tone: 'bg-[#ecfdf5] text-[#059669]' },
+    { label: 'Current Streak',  value: stats?.streak ?? 0,                 sub: (stats?.streak ?? 0) === 1 ? 'day in a row' : 'days in a row', icon: Flame, tone: 'bg-[#fff7ed] text-[#ea580c]' },
+    { label: 'Today',           value: `${stats?.todayMinutes ?? 0}m`,      sub: 'Minutes invested',          icon: Target,   tone: 'bg-[#fefce8] text-[#ca8a04]' },
+  ];
+
   return (
-    <div className="max-w-6xl mx-auto w-full p-6 space-y-8 font-sans text-gray-900 animate-in fade-in duration-500">
+    <div className="space-y-6 fade-in-up">
 
-      {/* ── HERO BANNER ── */}
-      <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/40 border border-indigo-100/50 p-8 sm:p-10 shadow-sm">
-        {/* Decorative Blur Orb */}
-        <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none" />
+      {/* ── Hero card ─────────────────────────────────────── */}
+      <section className="dash-hero ui-card relative overflow-hidden px-6 py-6 sm:px-8 sm:py-7">
+        <div className="absolute inset-y-0 left-0 w-1 rounded-l-2xl bg-[#2563a6]" />
 
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-indigo-100 text-indigo-600 text-[11px] font-bold uppercase tracking-widest mb-4 shadow-sm">
-            {stats?.streak && stats.streak > 0 ? (
-              <><Flame size={14} className="fill-orange-500 text-orange-500" /> {stats.streak} Day Streak</>
-            ) : (
-              <><Zap size={14} className="fill-indigo-500 text-indigo-500" /> Start your streak today</>
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-8">
+          <div className="flex-1 min-w-0">
+            <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#eaf2fb] px-2.5 py-1 text-[11px] font-semibold text-[#1d4f86]">
+              <Sparkles size={13} /> Your personal learning space
+            </p>
+            <h1 className="ui-page-title">{greeting()}, keep building momentum.</h1>
+
+            {/* Motivational stats strip */}
+            {hasCourses && (
+              <div className="mt-5 flex flex-wrap items-center gap-5">
+                {/* overall progress ring */}
+                <div className="relative flex items-center gap-3">
+                  <ProgressRing pct={overallPct} size={64} stroke={6} />
+                  <span className="absolute left-0 top-0 flex size-16 items-center justify-center text-[13px] font-bold text-[#182230]">
+                    {overallPct}%
+                  </span>
+                  <div>
+                    <p className="text-[13px] font-semibold text-[#182230]">Overall progress</p>
+                    <p className="text-[11px] text-[#98a2b3]">{completed} / {totalLessons} lessons</p>
+                  </div>
+                </div>
+
+                <div className="hidden h-10 w-px bg-[#e7e9ee] sm:block" />
+
+                {/* time remaining */}
+                <div>
+                  <p className="text-[13px] font-semibold text-[#182230]">Est. time left</p>
+                  <p className="text-[11px] text-[#98a2b3]">{formatDuration(estRemainSec)}</p>
+                </div>
+
+                {/* current course */}
+                {topCourse && (
+                  <>
+                    <div className="hidden h-10 w-px bg-[#e7e9ee] sm:block" />
+                    <div>
+                      <p className="text-[13px] font-semibold text-[#182230]">Current course</p>
+                      <p className="max-w-[160px] truncate text-[11px] text-[#98a2b3]">{topCourse.course_title}</p>
+                    </div>
+                  </>
+                )}
+
+                <div className="hidden h-10 w-px bg-[#e7e9ee] sm:block" />
+                <div className="flex items-center gap-1.5">
+                  <Flame size={15} className="text-[#ea580c]" />
+                  <div>
+                    <p className="text-[13px] font-semibold text-[#182230]">{stats?.streak ?? 0}-day streak</p>
+                    <p className="text-[11px] text-[#98a2b3]">Keep it going!</p>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900 mb-3">
-            {greeting()}, let&apos;s keep learning ✨
-          </h1>
-
-          <p className="text-[15px] text-gray-500 font-medium leading-relaxed">
-            {stats?.totalCourses === 0
-              ? 'Import your first course folder to get started and build your learning library.'
-              : `You have ${stats?.totalCourses} course${stats?.totalCourses !== 1 ? 's' : ''} active — ${stats?.completedLessons} lessons completed so far.`}
-          </p>
-
-          {stats?.totalCourses === 0 && (
-            <Link
-              href="/import"
-              className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-xl transition-all shadow-md active:scale-95"
-            >
-              <BookOpen size={16} /> Import Folder
-            </Link>
-          )}
-        </div>
-      </div>
-
-      {/* ── STATS GRID ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Courses', value: stats?.totalCourses ?? 0, icon: BookOpen, colorClass: 'text-indigo-600 bg-indigo-50 border-indigo-100', suffix: '' },
-          { label: 'Hours Learned', value: stats?.totalHoursLearned ?? 0, icon: Clock, colorClass: 'text-orange-600 bg-orange-50 border-orange-100', suffix: 'h' },
-          { label: 'Streak', value: stats?.streak ?? 0, icon: Flame, colorClass: 'text-rose-600 bg-rose-50 border-rose-100', suffix: ' days' },
-          { label: 'Today', value: stats?.todayMinutes ?? 0, icon: Target, colorClass: 'text-emerald-600 bg-emerald-50 border-emerald-100', suffix: 'm' },
-        ].map(({ label, value, icon: Icon, colorClass, suffix }) => (
-          <div key={label} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-[13px] font-semibold text-gray-500">{label}</span>
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${colorClass}`}>
-                <Icon size={16} />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-bold tracking-tight text-gray-900 leading-none">{value}</span>
-              <span className="text-sm font-semibold text-gray-400">{suffix}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── CONTINUE LEARNING ── */}
-      {(stats?.continueWatching?.length ?? 0) > 0 && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 tracking-tight">
-              <Play size={18} className="text-indigo-600 fill-indigo-600/20" /> Continue Learning
-            </h2>
-            <Link
-              href="/library"
-              className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 transition-colors"
-            >
-              View all <ChevronRight size={16} />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {stats?.continueWatching?.map((item: any) => (
-              <Link
-                key={item.lesson_id}
-                href={`/course/${item.course_id}/lesson/${item.lesson_id}`}
-                className="group block bg-white border border-gray-100 hover:border-indigo-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all"
-              >
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <Play size={18} className="text-indigo-600 fill-indigo-600" />
-                </div>
-
-                <div className="space-y-1 mb-4">
-                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider truncate">{item.course_title}</p>
-                  <h3 className="text-[15px] font-bold text-gray-900 leading-snug line-clamp-2">{item.lesson_title}</h3>
-                </div>
-
-                <div className="space-y-2.5">
-                  <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className="bg-indigo-600 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${item.progress_pct}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-gray-500">
-                    <span>{item.progress_pct}% complete</span>
-                    <span>{formatDuration(item.position)} / {formatDuration(item.duration)}</span>
-                  </div>
-                </div>
+          {/* CTA buttons */}
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col lg:items-stretch">
+            {topCourse && (
+              <Link href={`/course/${topCourse.course_id}/lesson/${topCourse.lesson_id}`} className="ui-btn ui-btn-accent">
+                <Play size={15} fill="currentColor" /> Continue learning
               </Link>
+            )}
+            <Link href="/import" className="ui-btn ui-btn-secondary"><BookOpen size={15} /> Import content</Link>
+            <Link href={hasCourses ? '/library' : '/import'} className="ui-btn ui-btn-primary">
+              {hasCourses ? 'Open library' : 'Get started'} <ArrowRight size={15} />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── My Courses progress rail ───────────────────────── */}
+      {hasCourses && courses.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-[14px] font-bold tracking-[-.02em] text-[#182230]">My Courses</h2>
+            <Link href="/library" className="flex items-center gap-1 text-[12px] font-semibold text-[#2563a6] hover:underline">
+              All courses <ArrowRight size={13} />
+            </Link>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {courses.slice(0, 6).map(course => (
+              <div key={course.id} className="relative">
+                <CourseProgressCard course={course} continueItem={cwMap[course.id]} />
+              </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* ── RECENT ACTIVITY ── */}
-      {(stats?.recentActivity?.length ?? 0) > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 px-1 tracking-tight">
-            <BarChart3 size={18} className="text-indigo-600" /> Recent Activity
-          </h2>
-
-          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-            <div className="divide-y divide-gray-50">
-              {stats?.recentActivity?.map((item: any) => (
-                <Link
-                  key={item.lesson_id}
-                  href={`/course/${item.course_id}/lesson/${item.lesson_id}`}
-                  className="flex items-center gap-4 p-4 sm:px-6 hover:bg-gray-50/80 transition-colors group"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-gray-100 group-hover:bg-indigo-50 flex items-center justify-center shrink-0 transition-colors">
-                    <Play size={14} className="text-gray-500 group-hover:text-indigo-600" />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[14px] font-semibold text-gray-900 truncate">
-                      {item.lesson_title}
-                    </div>
-                    <div className="text-[12px] font-medium text-gray-500 truncate">
-                      {item.course_title}
-                    </div>
-                  </div>
-
-                  <div className="text-[11px] font-semibold text-gray-400 shrink-0 bg-gray-50 px-2.5 py-1 rounded-md border border-gray-100">
-                    {timeAgo(item.last_watched)}
-                  </div>
-                </Link>
-              ))}
+      {/* ── Stat cards ────────────────────────────────────── */}
+      <section aria-label="Learning statistics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {statCards.map(({ label, value, sub, icon: Icon, tone }) => (
+          <div key={label} className="ui-card dash-stat p-5">
+            <div className="flex items-start justify-between">
+              <p className="text-[12px] font-semibold uppercase tracking-[.07em] text-[#98a2b3]">{label}</p>
+              <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${tone}`}>
+                <Icon size={16} />
+              </span>
             </div>
+            <p className="mt-4 text-[32px] font-bold tracking-[-.04em] text-[#182230] leading-none">{value}</p>
+            <p className="mt-1.5 text-[12px] text-[#98a2b3]">{sub}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* ── Continue learning + Recent activity ───────────── */}
+      {hasCourses ? (
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+          {/* Continue learning */}
+          <section className="ui-card overflow-hidden">
+            <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4 sm:px-6">
+              <div>
+                <p className="ui-kicker">In progress</p>
+                <h2 className="mt-1 ui-section-title">Continue learning</h2>
+              </div>
+              <Link href="/library" className="ui-btn ui-btn-ghost min-h-8 px-2 text-[12px]">
+                View library <ArrowRight size={14} />
+              </Link>
+            </div>
+
+            {(stats?.continueWatching?.length ?? 0) > 0 ? (
+              <div className="divide-y divide-[#edf0f3]">
+                {stats?.continueWatching?.map(item => {
+                  const remainSec = Math.max(0, item.duration - item.position);
+                  return (
+                    <Link
+                      key={item.lesson_id}
+                      href={`/course/${item.course_id}/lesson/${item.lesson_id}`}
+                      className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[#fafbfc] sm:px-6"
+                    >
+                      <span className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#eaf2fb] text-[#2563a6] transition-transform group-hover:scale-[1.04]">
+                        <Play size={20} fill="currentColor" />
+                        <span className="absolute bottom-0 left-0 h-1 rounded-b-xl bg-[#2563a6]" style={{ width: `${item.progress_pct}%` }} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[10px] font-bold uppercase tracking-[.08em] text-[#98a2b3]">{item.course_title}</span>
+                        <span className="mt-0.5 block truncate text-[14px] font-semibold text-[#344054] group-hover:text-[#1d4f86]">{item.lesson_title}</span>
+                        <span className="mt-2 block ui-progress"><span style={{ width: `${item.progress_pct}%` }} /></span>
+                      </span>
+                      <span className="hidden shrink-0 text-right sm:block">
+                        <span className="block text-[13px] font-bold text-[#344054]">{item.progress_pct}%</span>
+                        <span className="mt-0.5 block text-[11px] text-[#98a2b3]">{formatDuration(remainSec)} left</span>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
+                <span className="flex size-11 items-center justify-center rounded-full bg-[#f1f3f6] text-[#98a2b3]"><Play size={20} /></span>
+                <p className="text-[13px] text-[#667085]">Open a lesson from your library to begin tracking progress.</p>
+                <Link href="/library" className="ui-btn ui-btn-secondary mt-1 text-[12px]">Browse library</Link>
+              </div>
+            )}
+          </section>
+
+          {/* Recent activity */}
+          <section className="ui-card overflow-hidden">
+            <div className="border-b border-[var(--line)] px-5 py-4 sm:px-6">
+              <p className="ui-kicker">Latest updates</p>
+              <h2 className="mt-1 ui-section-title">Recent activity</h2>
+            </div>
+            {(stats?.recentActivity?.length ?? 0) > 0 ? (
+              <div className="divide-y divide-[#edf0f3]">
+                {stats?.recentActivity?.slice(0, 6).map(item => (
+                  <Link
+                    key={item.lesson_id}
+                    href={`/course/${item.course_id}/lesson/${item.lesson_id}`}
+                    className="group flex gap-3 px-5 py-3.5 hover:bg-[#fafbfc] sm:px-6"
+                  >
+                    <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#edf7f1] text-[#167a55]">
+                      <CheckCircle2 size={14} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-semibold text-[#344054] group-hover:text-[#1d4f86]">{item.lesson_title}</span>
+                      <span className="mt-0.5 block truncate text-[11px] text-[#98a2b3]">{item.course_title}</span>
+                    </span>
+                    <span className="shrink-0 text-[11px] text-[#98a2b3] pt-0.5">{timeAgo(item.last_watched)}</span>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
+                <span className="flex size-11 items-center justify-center rounded-full bg-[#f1f3f6] text-[#98a2b3]"><TrendingUp size={20} /></span>
+                <p className="text-[13px] text-[#667085]">Your recent activity will appear here as you learn.</p>
+              </div>
+            )}
+          </section>
+        </div>
+      ) : (
+        /* Empty state */
+        <section className="ui-card mx-auto max-w-3xl px-6 py-14 text-center sm:px-10">
+          <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-[#eaf2fb] text-[#2563a6]">
+            <BookOpen size={23} />
+          </span>
+          <h2 className="mt-5 text-[21px] font-bold tracking-[-.03em] text-[#182230]">A home for what you want to learn</h2>
+          <p className="mx-auto mt-2 max-w-md text-[14px] leading-6 text-[#667085]">
+            Bring in a folder of videos or PDFs, and LearnX will turn it into a structured course that stays on your device.
+          </p>
+          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link href="/import" className="ui-btn ui-btn-primary"><BookOpen size={16} /> Import a folder</Link>
+            <Link href="/library" className="ui-btn ui-btn-secondary">Create a course</Link>
           </div>
         </section>
       )}
-
-      {/* ── EMPTY STATE ── */}
-      {stats?.totalCourses === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white border border-gray-100 rounded-3xl border-dashed">
-          <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center text-4xl mb-6 shadow-sm border border-gray-100">
-            🎓
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2 tracking-tight">Your learning journey starts here</h3>
-          <p className="text-sm text-gray-500 max-w-md mb-8 leading-relaxed">
-            Import a local folder to begin organizing your learning content. Everything runs locally, no uploads required.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            <Link
-              href="/import"
-              className="w-full sm:w-auto px-6 py-2.5 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-xl transition-all shadow-md"
-            >
-              Import Folder
-            </Link>
-            <Link
-              href="/library"
-              className="w-full sm:w-auto px-6 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl transition-all"
-            >
-              Browse Library
-            </Link>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
