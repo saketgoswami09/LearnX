@@ -38,9 +38,10 @@ export interface Lesson {
   module_id: string;
   course_id: string;
   title: string;
-  type: 'video' | 'pdf' | 'note' | 'link';
+  type: 'video' | 'pdf' | 'note' | 'link' | 'youtube';
   file_path: string;
   duration: number;
+  youtube_url?: string;
   order_index: number;
   created_at: number;
   // computed
@@ -123,4 +124,17 @@ export interface SearchResult {
   subtitle: string;
   course_id?: string;
   lesson_id?: string;
+}
+
+export interface YouTubeTimestamp {
+  time: number;    // seconds
+  label: string;
+}
+
+export interface YouTubeTimestampCache {
+  lesson_id: string;
+  video_id: string;
+  timestamps: YouTubeTimestamp[];
+  source: 'chapters' | 'ai' | 'manual';
+  cached_at: number;
 }

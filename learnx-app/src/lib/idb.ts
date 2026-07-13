@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'learnx';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 // ──────────────────────────────────────────────
 // Store names
@@ -21,6 +21,8 @@ export const STORES = {
   settings: 'settings',
   /** Stores FileSystemFileHandle objects keyed by lesson id */
   fileHandles: 'file_handles',
+  /** Caches YouTube chapter/AI timestamps keyed by lesson_id */
+  ytTimestamps: 'yt_timestamps',
 } as const;
 
 // ──────────────────────────────────────────────
@@ -60,6 +62,7 @@ export async function openDb(): Promise<IDBDatabase> {
       createStore(STORES.activityLog, 'id', [['by_date', 'date']]);
       createStore(STORES.settings, 'key');
       createStore(STORES.fileHandles, 'lesson_id');
+      createStore(STORES.ytTimestamps, 'lesson_id');
     };
 
     req.onsuccess = async (e) => {

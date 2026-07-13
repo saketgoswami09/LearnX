@@ -1,5 +1,42 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Gilroy';
+  src: url('https://fonts.cdnfonts.com/s/16219/Gilroy-Light.woff') format('woff');
+  font-weight: 300;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Gilroy';
+  src: url('https://fonts.cdnfonts.com/s/16219/Gilroy-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Gilroy';
+  src: url('https://fonts.cdnfonts.com/s/16219/Gilroy-Medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Gilroy';
+  src: url('https://fonts.cdnfonts.com/s/16219/Gilroy-Bold.woff') format('woff');
+  font-weight: 600;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Gilroy';
+  src: url('https://fonts.cdnfonts.com/s/16219/Gilroy-Heavy.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Gilroy';
+  src: url('https://fonts.cdnfonts.com/s/16219/Gilroy-Heavy.woff') format('woff');
+  font-weight: 800;
+  font-style: normal;
+}
+
 @source "../components";
 @source "../app";
 
@@ -12,8 +49,8 @@
   --color-accent-soft: #eaf2fb;
   --color-success: #167a55;
 
-  --font-sans: var(--font-suisse), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-george), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Gilroy', var(--font-suisse), ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Gilroy', var(--font-george), ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
@@ -118,8 +155,8 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .ui-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgb(37 99 166 / 12%); outline: none; }
 
 .ui-kicker { color: #667085; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.ui-page-title { color: var(--ink); font-family: var(--font-display); font-size: clamp(26px, 3vw, 34px); font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
-.ui-section-title { color: var(--ink); font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+.ui-page-title { color: var(--ink); font-family: var(--font-display); font-size: clamp(26px, 3vw, 34px); font-weight: 600; letter-spacing: -.02em; line-height: 1.15; }
+.ui-section-title { color: var(--ink); font-family: var(--font-display); font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
 .ui-progress { height: 6px; overflow: hidden; border-radius: 99px; background: #e9edf2; }
 .ui-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 450ms ease; }
 

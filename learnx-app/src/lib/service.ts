@@ -28,7 +28,7 @@ export async function getCategories(): Promise<Category[]> {
 // ────────────────────────────────────────────────
 // COURSES
 // ────────────────────────────────────────────────
-export async function getCourses(): Promise<(Course & { totalLessons: number; completedLessons: number; progress: number; categoryName?: string })[]> {
+export async function getCourses(): Promise<(Course & { totalLessons: number; completedLessons: number; progress: number; categoryName?: string; categoryIcon?: string })[]> {
   await openDb();
   const [courses, categories, lessons, progressList] = await Promise.all([
     dbGetAll<Course>(STORES.courses),
@@ -52,6 +52,7 @@ export async function getCourses(): Promise<(Course & { totalLessons: number; co
         completedLessons: completed,
         progress: cLessons.length > 0 ? Math.round((completed / cLessons.length) * 100) : 0,
         categoryName: catMap[course.category_id]?.name,
+        categoryIcon: catMap[course.category_id]?.icon,
       };
     });
 }
@@ -216,9 +217,16 @@ export async function createLesson(body: Partial<Lesson>): Promise<Lesson> {
     duration: body.duration || 0,
     order_index: existing.length,
     created_at: now,
+    ...(body.youtube_url ? { youtube_url: body.youtube_url } : {}),
   };
   await dbPut(STORES.lessons, lesson);
   return lesson;
+}
+
+export async function updateLesson(lessonId: string, body: Partial<Lesson>): Promise<void> {
+  const existing = await dbGet<Lesson>(STORES.lessons, lessonId);
+  if (!existing) return;
+  await dbPut(STORES.lessons, { ...existing, ...body });
 }
 
 // ────────────────────────────────────────────────

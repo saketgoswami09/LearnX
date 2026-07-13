@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
   ArrowRight, BookOpen, CheckCircle2, Clock3,
-  Flame, Play, Sparkles, Target, TrendingUp,
+  Flame, Play, Sparkles, Target, TrendingUp, Search
 } from 'lucide-react';
 import type { Course, DashboardStats } from '@/types';
 import { formatDuration, timeAgo } from '@/lib/utils';
 import { getCourses, getStats } from '@/lib/service';
+import { motion } from 'framer-motion';
 
 /* ─── Skeleton ────────────────────────────────────────────── */
 function DashboardSkeleton() {
@@ -39,9 +40,10 @@ function ProgressRing({ pct, size = 72, stroke = 6, color = '#2563a6' }: { pct: 
 }
 
 /* ─── Course progress card ────────────────────────────────── */
-function CourseProgressCard({ course, continueItem }: {
-  course: Course & { totalLessons: number; completedLessons: number; progress: number };
+function CourseProgressCard({ course, continueItem, isActive }: {
+  course: Course & { totalLessons: number; completedLessons: number; progress: number; categoryName?: string; categoryIcon?: string };
   continueItem?: { lesson_id: string } | null;
+  isActive?: boolean;
 }) {
   const pct       = course.progress ?? 0;
   const color     = course.color || '#2563a6';
@@ -51,42 +53,68 @@ function CourseProgressCard({ course, continueItem }: {
   const lessonHref = continueItem
     ? `/course/${course.id}/lesson/${continueItem.lesson_id}`
     : `/course/${course.id}`;
+    
+  // Estimate time left based on remaining lessons (avg 8 min)
+  const remaining = course.totalLessons - course.completedLessons;
+  const estTime   = remaining > 0 ? formatDuration(remaining * 8 * 60) : '';
 
   return (
-    <div className="ui-card flex flex-col gap-3 overflow-hidden p-4 transition-shadow hover:shadow-[0_4px_16px_rgb(16_24_40/8%)]">
+    <div className="ui-card group flex flex-col gap-4 overflow-hidden p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_24px_rgb(16_24_40/8%)]">
       {/* thin colour accent top */}
       <div className="absolute top-0 inset-x-0 h-[3px] rounded-t-[14px]" style={{ backgroundColor: color }} />
+      
+      {/* Active badge */}
+      {isActive && (
+        <span className="absolute right-3 top-3 rounded-full bg-[#ecfdf5] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#059669]">
+          Currently Learning
+        </span>
+      )}
 
-      <div className="flex items-start justify-between gap-3 pt-1">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-bold tracking-[-.02em] text-[#182230]">{course.title}</p>
-          <p className="mt-0.5 text-[11px] text-[#98a2b3]">
-            {course.completedLessons} / {course.totalLessons} lessons
-            {done && <span className="ml-2 font-semibold text-[#167a55]">✓ Complete</span>}
-          </p>
+      {/* Header: Icon + Title + Category */}
+      <div className="flex items-start gap-3 mt-1">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#f1f3f6] text-[18px]">
+          {course.categoryIcon || '📚'}
+        </span>
+        <div className="min-w-0 flex-1 pr-12">
+          <p className="truncate text-[15px] font-bold tracking-[-.02em] text-[#182230] group-hover:text-[#1d4f86] transition-colors">{course.title}</p>
+          <p className="mt-0.5 text-[12px] font-medium text-[#98a2b3]">{course.categoryName || 'General'}</p>
         </div>
-        <span className="text-[20px] font-bold tabular-nums tracking-tight text-[#344054]">{pct}%</span>
+      </div>
+
+      {/* Stats row */}
+      <div className="mt-2 flex items-end justify-between">
+        <div>
+          <p className="text-[11px] font-semibold text-[#667085]">
+            {course.completedLessons} / {course.totalLessons} lessons
+          </p>
+          {remaining > 0 && (
+            <p className="mt-0.5 text-[11px] text-[#98a2b3]">≈ {estTime} remaining</p>
+          )}
+        </div>
+        <span className={`text-[20px] font-bold tabular-nums tracking-tight ${done ? 'text-[#167a55]' : 'text-[#344054]'}`}>
+          {done ? '✓' : started ? `${pct}%` : <span className="text-[14px] text-[#98a2b3]">Not Started</span>}
+        </span>
       </div>
 
       {/* progress bar */}
       <div className="ui-progress">
-        <span style={{ width: `${pct}%`, backgroundColor: color }} />
+        <span className="transition-all duration-700 ease-out group-hover:brightness-110" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
 
       {/* footer */}
-      <div className="flex items-center justify-between">
+      <div className="mt-1 flex items-center justify-between">
         <Link
           href={`/course/${course.id}`}
-          className="text-[11px] font-semibold text-[#98a2b3] hover:text-[#344054] transition-colors"
+          className="text-[12px] font-semibold text-[#98a2b3] hover:text-[#344054] transition-colors"
         >
-          View course
+          View details
         </Link>
         <Link
           href={lessonHref}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-bold text-white transition-colors hover:opacity-90 active:scale-[.98]"
+          className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[12px] font-bold text-white transition-all duration-300 hover:opacity-90 active:scale-[.98] group-hover:translate-x-[-2px] group-hover:shadow-md"
           style={{ backgroundColor: color }}
         >
-          {done ? <CheckCircle2 size={13} /> : <Play size={12} fill="currentColor" />}
+          {done ? <CheckCircle2 size={14} /> : <Play size={13} fill="currentColor" />}
           {btnLabel}
         </Link>
       </div>
@@ -99,6 +127,9 @@ export default function DashboardPage() {
   const [stats,   setStats]   = useState<DashboardStats | null>(null);
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const [filter, setFilter] = useState<'all' | 'in-progress' | 'completed' | 'not-started'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -131,6 +162,16 @@ export default function DashboardPage() {
   const remainingLessons = totalLessons - completed;
   const estRemainSec     = remainingLessons * 8 * 60;
 
+  // Filtered courses
+  const filteredCourses = courses.filter(c => {
+    if (searchQuery && !c.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    const pct = c.progress ?? 0;
+    if (filter === 'in-progress') return pct > 0 && pct < 100;
+    if (filter === 'completed') return pct === 100;
+    if (filter === 'not-started') return pct === 0;
+    return true;
+  });
+
   const statCards = [
     { label: 'Active Courses',  value: stats?.totalCourses ?? 0,          sub: `${totalLessons} lessons`,   icon: BookOpen, tone: 'bg-[#eaf2fb] text-[#2563a6]' },
     { label: 'Learning Time',   value: `${stats?.totalHoursLearned ?? 0}h`, sub: 'Total focused time',       icon: Clock3,   tone: 'bg-[#ecfdf5] text-[#059669]' },
@@ -138,11 +179,29 @@ export default function DashboardPage() {
     { label: 'Today',           value: `${stats?.todayMinutes ?? 0}m`,      sub: 'Minutes invested',          icon: Target,   tone: 'bg-[#fefce8] text-[#ca8a04]' },
   ];
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.08, delayChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 400, damping: 30 } }
+  };
+
   return (
-    <div className="space-y-6 fade-in-up">
+    <motion.div 
+      variants={containerVariants} 
+      initial="hidden" 
+      animate="show" 
+      className="space-y-6"
+    >
 
       {/* ── Hero card ─────────────────────────────────────── */}
-      <section className="dash-hero ui-card relative overflow-hidden px-6 py-6 sm:px-8 sm:py-7">
+      <motion.section variants={itemVariants} className="dash-hero ui-card relative overflow-hidden px-6 py-6 sm:px-8 sm:py-7">
         <div className="absolute inset-y-0 left-0 w-1 rounded-l-2xl bg-[#2563a6]" />
 
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-8">
@@ -211,48 +270,13 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
-      </section>
+      </motion.section>
 
-      {/* ── My Courses progress rail ───────────────────────── */}
-      {hasCourses && courses.length > 0 && (
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-[14px] font-bold tracking-[-.02em] text-[#182230]">My Courses</h2>
-            <Link href="/library" className="flex items-center gap-1 text-[12px] font-semibold text-[#2563a6] hover:underline">
-              All courses <ArrowRight size={13} />
-            </Link>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {courses.slice(0, 6).map(course => (
-              <div key={course.id} className="relative">
-                <CourseProgressCard course={course} continueItem={cwMap[course.id]} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── Stat cards ────────────────────────────────────── */}
-      <section aria-label="Learning statistics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {statCards.map(({ label, value, sub, icon: Icon, tone }) => (
-          <div key={label} className="ui-card dash-stat p-5">
-            <div className="flex items-start justify-between">
-              <p className="text-[12px] font-semibold uppercase tracking-[.07em] text-[#98a2b3]">{label}</p>
-              <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${tone}`}>
-                <Icon size={16} />
-              </span>
-            </div>
-            <p className="mt-4 text-[32px] font-bold tracking-[-.04em] text-[#182230] leading-none">{value}</p>
-            <p className="mt-1.5 text-[12px] text-[#98a2b3]">{sub}</p>
-          </div>
-        ))}
-      </section>
-
-      {/* ── Continue learning + Recent activity ───────────── */}
       {hasCourses ? (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-          {/* Continue learning */}
-          <section className="ui-card overflow-hidden">
+        <div className="space-y-10">
+          
+          {/* ── Continue learning ───────────────────────────── */}
+          <motion.section variants={itemVariants} className="ui-card overflow-hidden">
             <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4 sm:px-6">
               <div>
                 <p className="ui-kicker">In progress</p>
@@ -297,10 +321,79 @@ export default function DashboardPage() {
                 <Link href="/library" className="ui-btn ui-btn-secondary mt-1 text-[12px]">Browse library</Link>
               </div>
             )}
-          </section>
+          </motion.section>
 
-          {/* Recent activity */}
-          <section className="ui-card overflow-hidden">
+          {/* ── My Courses & Filters ───────────────────────── */}
+          <motion.section variants={itemVariants}>
+            <div className="mb-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+              <div>
+                <h2 className="text-[16px] font-bold tracking-[-.02em] text-[#182230] font-display">My Courses</h2>
+                <p className="mt-0.5 text-[12px] text-[#667085]">Jump back into your active curriculum.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#98a2b3]" />
+                  <input
+                    type="text"
+                    placeholder="Search courses..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="h-8 w-[160px] rounded-lg border border-[#d9dee7] bg-white pl-8 pr-3 text-[12px] outline-none transition-colors focus:border-[#2563a6] focus:ring-1 focus:ring-[#2563a6]"
+                  />
+                </div>
+                <select 
+                  value={filter}
+                  onChange={e => setFilter(e.target.value as any)}
+                  className="h-8 rounded-lg border border-[#d9dee7] bg-white px-3 text-[12px] font-medium outline-none transition-colors focus:border-[#2563a6]"
+                >
+                  <option value="all">All Courses</option>
+                  <option value="in-progress">In Progress</option>
+                  <option value="not-started">Not Started</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+            </div>
+            
+            {filteredCourses.length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {filteredCourses.slice(0, 6).map(course => (
+                  <CourseProgressCard key={course.id} course={course} continueItem={cwMap[course.id]} isActive={topCourse?.course_id === course.id} />
+                ))}
+              </div>
+            ) : (
+              <div className="ui-card flex min-h-[160px] flex-col items-center justify-center text-center p-6">
+                <p className="text-[13px] font-semibold text-[#182230]">No courses found</p>
+                <p className="mt-1 text-[12px] text-[#667085]">Try adjusting your search or filters.</p>
+              </div>
+            )}
+            
+            {filteredCourses.length > 6 && (
+              <div className="mt-4 text-center">
+                <Link href="/library" className="text-[12px] font-bold text-[#2563a6] hover:underline">
+                  View all {filteredCourses.length} courses →
+                </Link>
+              </div>
+            )}
+          </motion.section>
+
+          {/* ── Stat cards ────────────────────────────────────── */}
+          <motion.section variants={itemVariants} aria-label="Learning statistics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {statCards.map(({ label, value, sub, icon: Icon, tone }) => (
+              <div key={label} className="ui-card dash-stat p-5">
+                <div className="flex items-start justify-between">
+                  <p className="text-[12px] font-semibold uppercase tracking-[.07em] text-[#98a2b3]">{label}</p>
+                  <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${tone}`}>
+                    <Icon size={16} />
+                  </span>
+                </div>
+                <p className="mt-4 text-[32px] font-bold tracking-[-.04em] text-[#182230] leading-none">{value}</p>
+                <p className="mt-1.5 text-[12px] text-[#98a2b3]">{sub}</p>
+              </div>
+            ))}
+          </motion.section>
+
+          {/* ── Recent activity ───────────────────────────────── */}
+          <motion.section variants={itemVariants} className="ui-card overflow-hidden">
             <div className="border-b border-[var(--line)] px-5 py-4 sm:px-6">
               <p className="ui-kicker">Latest updates</p>
               <h2 className="mt-1 ui-section-title">Recent activity</h2>
@@ -330,11 +423,11 @@ export default function DashboardPage() {
                 <p className="text-[13px] text-[#667085]">Your recent activity will appear here as you learn.</p>
               </div>
             )}
-          </section>
+          </motion.section>
         </div>
       ) : (
         /* Empty state */
-        <section className="ui-card mx-auto max-w-3xl px-6 py-14 text-center sm:px-10">
+        <motion.section variants={itemVariants} className="ui-card mx-auto max-w-3xl px-6 py-14 text-center sm:px-10">
           <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-[#eaf2fb] text-[#2563a6]">
             <BookOpen size={23} />
           </span>
@@ -346,8 +439,8 @@ export default function DashboardPage() {
             <Link href="/import" className="ui-btn ui-btn-primary"><BookOpen size={16} /> Import a folder</Link>
             <Link href="/library" className="ui-btn ui-btn-secondary">Create a course</Link>
           </div>
-        </section>
+        </motion.section>
       )}
-    </div>
+    </motion.div>
   );
 }

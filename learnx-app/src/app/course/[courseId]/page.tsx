@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { BookOpen, CheckCircle2, ChevronLeft, Clock3, FileText, Play, PlayCircle, Trash2 } from 'lucide-react';
+import { BookOpen, CheckCircle2, ChevronLeft, Clock3, FileText, Play, PlayCircle, Trash2, PlaySquare } from 'lucide-react';
 import type { Course, Module } from '@/types';
 import { formatDuration } from '@/lib/utils';
 import { deleteCourse, getCourse } from '@/lib/service';
+import { AddYouTubeLessonModal } from '@/components/course/AddYouTubeLessonModal';
 
 export default function CourseDetailPage() {
   const params = useParams();
@@ -14,6 +15,7 @@ export default function CourseDetailPage() {
   const [course, setCourse] = useState<(Course & { modules: Module[]; categoryName?: string }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [showAddYT, setShowAddYT] = useState(false);
 
   const handleDelete = async () => {
     if (!course) return;
@@ -122,6 +124,13 @@ export default function CourseDetailPage() {
                 {totalLessons} lesson{totalLessons === 1 ? '' : 's'} across {modules.length} module{modules.length === 1 ? '' : 's'}
               </h2>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowAddYT(true)}
+              className="flex items-center gap-1.5 rounded-[9px] border border-[#fca5a5] bg-[#fef2f2] px-3 py-2 text-[12px] font-semibold text-[#dc2626] transition-colors hover:bg-[#fee2e2]"
+            >
+              <PlaySquare size={14} /> Add YT lesson
+            </button>
           </div>
 
           {modules.length === 0 ? (
@@ -157,6 +166,8 @@ export default function CourseDetailPage() {
                           >
                             {lesson.completed ? (
                               <CheckCircle2 size={16} />
+                            ) : lesson.type === 'youtube' ? (
+                              <PlaySquare size={14} className="text-[#ef4444]" />
                             ) : lesson.type === 'video' ? (
                               <Play size={14} fill="currentColor" />
                             ) : (
@@ -253,6 +264,17 @@ export default function CourseDetailPage() {
           </section>
         </aside>
       </div>
+
+      {showAddYT && (
+        <AddYouTubeLessonModal
+          courseId={course.id}
+          onClose={() => setShowAddYT(false)}
+          onCreated={(lessonId) => {
+            setShowAddYT(false);
+            router.push(`/course/${course.id}/lesson/${lessonId}`);
+          }}
+        />
+      )}
     </div>
   );
 }
